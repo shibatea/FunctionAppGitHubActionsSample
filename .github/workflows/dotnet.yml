@@ -1,0 +1,49 @@
+name: .NET
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_WEBAPP_NAME: my-app-name    # set this to your application's name
+  AZURE_WEBAPP_PACKAGE_PATH: '.'    # set this to the path to your web app project, defaults to the repository root
+  DOTNET_VERSION: '3.1.x'         # set this to the dot net version to use
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore
+    
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+
+    - name: dotnet publish
+      run: dotnet publish -c Release -o ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}/myapp
+
+    - name: Azure Functions Action
+      uses: Azure/functions-action@v1.1.8
+      with:
+        # Name of the Azure Function App
+        app-name: 'modeling-kai-functions-app'
+        # Path to package or folder. *.zip or a folder to deploy
+        package: ${{env.AZURE_WEBAPP_PACKAGE_PATH}}/myapp
+        # Function app slot to be deploy to
+        slot-name: 'production'
+        # Publish profile (*.publishsettings) file contents with web deploy secrets
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
